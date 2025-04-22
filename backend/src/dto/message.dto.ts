@@ -2,7 +2,12 @@
 export class MessageDto {
     room: string;
     sender: string;
-    content?: string;      // 文本消息
-    imageUrl?: string;     // 图片消息
+    // 文本内容
+    content?: string;
+    // 文件消息：后端返回给前端的可访问 URL
+    fileUrl?: string;
+    // 文件原始名称，用于前端下载时展示
+    fileName?: string;
+    // 时间戳
     timestamp?: number;
 }

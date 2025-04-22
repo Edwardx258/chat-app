@@ -12,7 +12,9 @@ import { ChatService } from './chat.service';
 import { MessageDto } from './dto/message.dto';
 
 @WebSocketGateway({ cors: true })
-export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
     constructor(private readonly chatService: ChatService) {}
 
     @WebSocketServer()
@@ -33,17 +35,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @SubscribeMessage('joinRoom')
     handleJoin(client: Socket, payload: { room: string; user: string }) {
         client.join(payload.room);
-        // 发送历史消息给新加入者
         const history = this.chatService.getHistory(payload.room);
         client.emit('history', history);
     }
 
     @SubscribeMessage('message')
     handleMessage(client: Socket, payload: MessageDto) {
-        // 存储
-        const msg = { ...payload, timestamp: Date.now() };
-        this.chatService.saveMessage(payload.room, { ...payload, timestamp: Date.now() });
-        // 广播
-        this.server.to(payload.room).emit('message', payload);
+        // 完善消息：加时间戳
+        const msg: MessageDto = {
+            ...payload,
+            timestamp: Date.now(),
+        };
+        // 保存消息历史
+        this.chatService.saveMessage(msg.room, msg);
+        // 广播给房间内所有客户端
+        this.server.to(msg.room).emit('message', msg);
     }
 }

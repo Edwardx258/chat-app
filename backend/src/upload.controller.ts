@@ -5,6 +5,7 @@ import {
     UseInterceptors,
     UploadedFile,
     HttpException,
+    HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -19,21 +20,22 @@ export class UploadController {
             storage: diskStorage({
                 destination: './uploads',
                 filename: (_req, file, cb) => {
-                    const name = uuidv4() + extname(file.originalname);
-                    cb(null, name);
+                    // 用 uuid + 原始扩展名，避免同名冲突
+                    const fn = `${uuidv4()}${extname(file.originalname)}`;
+                    cb(null, fn);
                 },
             }),
-            fileFilter: (_req, file, cb) => {
-                if (!file.mimetype.match(/^image\/(jpeg|png|gif)$/)) {
-                    return cb(new HttpException('只允许 JPEG/PNG/GIF 格式', 400), false);
-                }
-                cb(null, true);
-            },
-            limits: { fileSize: 5 * 1024 * 1024 }, // 最大 5MB
-        }) as any,
+            limits: { fileSize: 20 * 1024 * 1024 }, // 最大 20MB，根据需求调整
+        }) as any, // TS mixin 类型断言
     )
     upload(@UploadedFile() file: Express.Multer.File) {
-        // 返回给前端的访问路径
-        return { imageUrl: `/uploads/${file.filename}` };
+        if (!file) {
+            throw new HttpException('上传失败', HttpStatus.BAD_REQUEST);
+        }
+        // 返回前端可访问的 URL 和原文件名
+        return {
+            fileUrl: `/uploads/${file.filename}`,
+            fileName: file.originalname,
+        };
     }
 }
