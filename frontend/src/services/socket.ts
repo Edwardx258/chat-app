@@ -11,6 +11,8 @@ export const socket: Socket = io(SOCKET_URL, {
 export interface Message {
     room: string;
     sender: string;
-    content: string;
+    content?: string;
+    imageUrl?: string;
     timestamp: number;
 }
+

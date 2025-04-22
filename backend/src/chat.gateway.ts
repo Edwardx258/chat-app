@@ -41,6 +41,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @SubscribeMessage('message')
     handleMessage(client: Socket, payload: MessageDto) {
         // 存储
+        const msg = { ...payload, timestamp: Date.now() };
         this.chatService.saveMessage(payload.room, { ...payload, timestamp: Date.now() });
         // 广播
         this.server.to(payload.room).emit('message', payload);
