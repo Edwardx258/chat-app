@@ -8,6 +8,6 @@ async function bootstrap() {
   app.enableCors({ origin: true, credentials: true });
   // 监听所有网卡
   await app.listen(3000, '0.0.0.0');
-  console.log('Server listening on http://0.0.0.0:3001');
+  console.log('Server listening on http://0.0.0.0:3000');
 }
 bootstrap();
