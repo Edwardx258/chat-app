@@ -7,7 +7,7 @@ async function bootstrap() {
   // 启用 WebSocket
   app.enableCors({ origin: true, credentials: true });
   // 监听所有网卡
-  await app.listen(3000, '0.0.0.0');
-  console.log('Server listening on http://0.0.0.0:3000');
+  await app.listen(3000, 'localhost');
+  console.log('Server listening on http://localhost:3000');
 }
 bootstrap();
