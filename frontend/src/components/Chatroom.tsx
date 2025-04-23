@@ -22,8 +22,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
     useEffect(() => {
         socket.connect();
         socket.emit('joinRoom', { room, user });
+        console.log('[ChatRoom] joinRoom', room, user, 'socket.id=', socket.id);
 
-        socket.on('history', (history: Msg[]) => setMessages(history));
+        socket.on('history', (his: Msg[]) => setMessages(his));
         socket.on('message', (msg: Msg) => {
             setMessages((prev) => [...prev, msg]);
         });
@@ -37,9 +38,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
     }, [room, user, socket]);
 
     const sendText = () => {
-        const text = input.trim();
-        if (!text) return;
-        socket.emit('message', { room, sender: user, content: text });
+        if (!input.trim()) return;
+        socket.emit('message', { room, sender: user, content: input.trim() });
         setInput('');
     };
 
@@ -61,7 +61,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
                     });
                 })
                 .catch(() => message.error('上传失败'));
-            return false; // prevent default upload
+            return false;
         },
     };
 
@@ -70,7 +70,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
             <List
                 dataSource={messages}
                 renderItem={(m) => (
-                    <List.Item>
+                    <List.Item key={m.timestamp + m.sender}>
                         <List.Item.Meta
                             title={<Text strong>{m.sender}</Text>}
                             description={
@@ -97,14 +97,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onPressEnter={sendText}
-                    placeholder="Enter your text here"
+                    placeholder="输入消息，按 Enter 发送"
                 />
                 <Button type="primary" onClick={sendText} style={{ marginLeft: 8 }}>
-                    Send
+                    发送
                 </Button>
                 <Upload {...uploadProps}>
                     <Button icon={<UploadOutlined />} style={{ marginLeft: 8 }}>
-                        Upload
+                        上传文件
                     </Button>
                 </Upload>
             </div>

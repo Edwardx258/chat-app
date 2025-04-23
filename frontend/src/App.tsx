@@ -14,43 +14,44 @@ function App() {
     const [videoOn, setVideoOn] = useState(false);
     const room = 'room1';
 
-    // 拿到 token 后马上创建并连接两个 socket
+    // 拿到 token 后立即创建并 connect 两个 socket
     useEffect(() => {
         if (!token) return;
         (async () => {
+            console.log('[App] token=', token);
+            const cs = await createChatSocket(token);
+            cs.connect();
+            console.log('[App] chatSock connected, id=', cs.id);
+            setChatSock(cs);
+
+            const vs = await createVideoSocket(token);
+            vs.connect();
+            console.log('[App] videoSock connected, id=', vs.id);
+            setVideoSock(vs);
+
+            // 从 JWT 解析用户名
             try {
-                const cs = await createChatSocket(token);
-                cs.connect();
-                setChatSock(cs);
-
-                const vs = await createVideoSocket(token);
-                vs.connect();
-                setVideoSock(vs);
-
-                // 从 JWT 中解析用户名
                 const payload = JSON.parse(atob(token.split('.')[1]));
-                setUser(payload.username || payload['cognito:username']);
-            } catch (err) {
-                console.error(err);
+                setUser((payload.username as string) || (payload['cognito:username'] as string));
+            } catch {
+                setUser('未知用户');
             }
         })();
     }, [token]);
 
-    // 未登录就显示 AuthForm
     if (!token) {
         return <AuthForm onLogin={setToken} />;
     }
 
-    // 登录后显示 ChatRoom 或 VideoChat
     return (
-        <div>
+        <div style={{ height: '100vh' }}>
             <div style={{ padding: 16 }}>
-                <span>Welcome，{user}</span>
-                <button onClick={() => setToken(null)} style={{ marginLeft: 8 }}>
-                    Logout
+                <span>欢迎，{user}</span>
+                <button onClick={() => setToken(null)} style={{ marginLeft: 16 }}>
+                    登出
                 </button>
-                <button onClick={() => setVideoOn((v) => !v)} style={{ marginLeft: 8 }}>
-                    {videoOn ? 'Text' : 'Video Chat'}
+                <button onClick={() => setVideoOn((v) => !v)} style={{ marginLeft: 16 }}>
+                    {videoOn ? '返回文字' : '启动视频'}
                 </button>
             </div>
             {!videoOn && chatSock && (
