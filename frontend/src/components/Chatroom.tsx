@@ -1,7 +1,10 @@
-import React, { useEffect, useState, ChangeEvent } from 'react';
-import { List, Input, Button, Upload, message, Card, Typography } from 'antd';
+// frontend/src/components/Chatroom.tsx
+
+import React, { useEffect, useState } from 'react';
+import { List, Input, Button, Upload, message, Card, Typography, Space } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import { chatSocket as socket, Message as Msg } from '../services/socket';
+import { Socket } from 'socket.io-client';
+import { Message as Msg } from '../services/socket';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -9,9 +12,10 @@ const { Text } = Typography;
 interface ChatRoomProps {
     room: string;
     user: string;
+    socket: Socket;
 }
 
-export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user }) => {
+export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
     const [messages, setMessages] = useState<Msg[]>([]);
     const [input, setInput] = useState('');
 
@@ -19,26 +23,30 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user }) => {
         socket.connect();
         socket.emit('joinRoom', { room, user });
 
-        socket.on('history', (his: Msg[]) => setMessages(his));
-        socket.on('message', (msg: Msg) => setMessages((prev) => [...prev, msg]));
+        socket.on('history', (history: Msg[]) => setMessages(history));
+        socket.on('message', (msg: Msg) => {
+            setMessages((prev) => [...prev, msg]);
+        });
 
         return () => {
             socket.off('history');
             socket.off('message');
             socket.emit('leaveRoom', { room });
+            socket.disconnect();
         };
-    }, [room, user]);
+    }, [room, user, socket]);
 
     const sendText = () => {
-        if (!input.trim()) return;
-        socket.emit('message', { room, sender: user, content: input });
+        const text = input.trim();
+        if (!text) return;
+        socket.emit('message', { room, sender: user, content: text });
         setInput('');
     };
 
     const uploadProps = {
         name: 'file',
         action: `${process.env.REACT_APP_SOCKET_URL || 'http://localhost:3000'}/upload`,
-        showUploadList: false,
+        showUploadList: false as const,
         beforeUpload: (file: File) => {
             const form = new FormData();
             form.append('file', file);
@@ -53,7 +61,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user }) => {
                     });
                 })
                 .catch(() => message.error('上传失败'));
-            return false;
+            return false; // prevent default upload
         },
     };
 
@@ -66,19 +74,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user }) => {
                         <List.Item.Meta
                             title={<Text strong>{m.sender}</Text>}
                             description={
-                                <>
+                                <Space direction="vertical">
                                     {m.content && <Text>{m.content}</Text>}
                                     {m.fileUrl && (
-                                        <div>
-                                            <a href={m.fileUrl} download={m.fileName}>
-                                                📎 {m.fileName}
-                                            </a>
-                                        </div>
+                                        <a href={m.fileUrl} download={m.fileName}>
+                                            <UploadOutlined /> {m.fileName}
+                                        </a>
                                     )}
                                     <Text type="secondary" style={{ fontSize: 12 }}>
                                         {new Date(m.timestamp).toLocaleTimeString()}
                                     </Text>
-                                </>
+                                </Space>
                             }
                         />
                     </List.Item>
@@ -91,14 +97,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user }) => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onPressEnter={sendText}
-                    placeholder="输入消息，按 Enter 发送"
+                    placeholder="Enter your text here"
                 />
                 <Button type="primary" onClick={sendText} style={{ marginLeft: 8 }}>
-                    发送
+                    Send
                 </Button>
                 <Upload {...uploadProps}>
                     <Button icon={<UploadOutlined />} style={{ marginLeft: 8 }}>
-                        上传文件
+                        Upload
                     </Button>
                 </Upload>
             </div>

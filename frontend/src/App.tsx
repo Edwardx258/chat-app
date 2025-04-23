@@ -1,61 +1,71 @@
-import React, { useEffect, useState } from 'react';
-import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+// frontend/src/App.tsx
+
+import React, { useState, useEffect } from 'react';
+import { AuthForm } from './components/AuthForm';
+import { createChatSocket, createVideoSocket } from './services/socket';
 import { ChatRoom } from './components/Chatroom';
 import { VideoChat } from './components/VideoChat';
-import { createChatSocket, createVideoSocket } from './services/socket';
 
-export default function App() {
-    return (
-        <Authenticator>
-            {() => <ChatUI />}
-        </Authenticator>
-    );
-}
-
-function ChatUI() {
-    const { user, signOut } = useAuthenticator((ctx) => [ctx.user]);
-    const username = user.username;
-    //const token = user.signInUserSession.getIdToken().getJwtToken();
-    const cognitoUser = user as unknown as { getSignInUserSession(): any };
-    const session = cognitoUser.getSignInUserSession();
-    const token = session.getIdToken().getJwtToken();
-
+function App() {
+    const [token, setToken] = useState<string | null>(null);
     const [chatSock, setChatSock] = useState<any>(null);
     const [videoSock, setVideoSock] = useState<any>(null);
+    const [user, setUser] = useState<string>('');
     const [videoOn, setVideoOn] = useState(false);
+    const room = 'room1';
 
+    // 拿到 token 后马上创建并连接两个 socket
     useEffect(() => {
+        if (!token) return;
         (async () => {
-            const cs = await createChatSocket(token);
-            cs.connect();
-            setChatSock(cs);
-            const vs = await createVideoSocket(token);
-            vs.connect();
-            setVideoSock(vs);
+            try {
+                const cs = await createChatSocket(token);
+                cs.connect();
+                setChatSock(cs);
+
+                const vs = await createVideoSocket(token);
+                vs.connect();
+                setVideoSock(vs);
+
+                // 从 JWT 中解析用户名
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                setUser(payload.username || payload['cognito:username']);
+            } catch (err) {
+                console.error(err);
+            }
         })();
     }, [token]);
 
-    if (!chatSock || !videoSock) return null;
+    // 未登录就显示 AuthForm
+    if (!token) {
+        return <AuthForm onLogin={setToken} />;
+    }
 
+    // 登录后显示 ChatRoom 或 VideoChat
     return (
-        <>
+        <div>
             <div style={{ padding: 16 }}>
-                欢迎，{username}！
-                <button onClick={() => signOut()}>登出</button>
-                <button onClick={() => setVideoOn((v) => !v)}>
-                    {videoOn ? '返回文字' : '启动视频'}
+                <span>Welcome，{user}</span>
+                <button onClick={() => setToken(null)} style={{ marginLeft: 8 }}>
+                    Logout
+                </button>
+                <button onClick={() => setVideoOn((v) => !v)} style={{ marginLeft: 8 }}>
+                    {videoOn ? 'Text' : 'Video Chat'}
                 </button>
             </div>
-            {!videoOn ? (
-                <ChatRoom room="room1" user={username} socket={chatSock} />
-            ) : (
+            {!videoOn && chatSock && (
+                <ChatRoom room={room} user={user} socket={chatSock} />
+            )}
+            {videoOn && videoSock && (
                 <VideoChat
-                    room="room1"
-                    user={username}
+                    room={room}
+                    user={user}
                     socket={videoSock}
                     onClose={() => setVideoOn(false)}
                 />
             )}
-        </>
+        </div>
     );
 }
+
+export default App;
