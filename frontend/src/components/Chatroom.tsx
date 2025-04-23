@@ -22,12 +22,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
     useEffect(() => {
         socket.connect();
         socket.emit('joinRoom', { room, user });
-        console.log('[ChatRoom] joinRoom', room, user, 'socket.id=', socket.id);
 
         socket.on('history', (his: Msg[]) => setMessages(his));
-        socket.on('message', (msg: Msg) => {
-            setMessages((prev) => [...prev, msg]);
-        });
+        socket.on('message', (msg: Msg) => setMessages((prev) => [...prev, msg]));
 
         return () => {
             socket.off('history');
@@ -38,9 +35,30 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
     }, [room, user, socket]);
 
     const sendText = () => {
-        if (!input.trim()) return;
-        socket.emit('message', { room, sender: user, content: input.trim() });
+        const text = input.trim();
+        if (!text) return;
+        socket.emit('message', { room, sender: user, content: text });
         setInput('');
+    };
+
+    // 新增：JS 下载而不跳转
+    const handleFileDownload = (url: string, filename: string) => {
+        fetch(url)
+            .then((res) => {
+                if (!res.ok) throw new Error('Network error');
+                return res.blob();
+            })
+            .then((blob) => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(() => message.error('Download Fail'));
     };
 
     const uploadProps = {
@@ -60,7 +78,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
                         fileName: data.fileName,
                     });
                 })
-                .catch(() => message.error('上传失败'));
+                .catch(() => message.error('Upload Fail'));
             return false;
         },
     };
@@ -77,9 +95,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
                                 <Space direction="vertical">
                                     {m.content && <Text>{m.content}</Text>}
                                     {m.fileUrl && (
-                                        <a href={m.fileUrl} download={m.fileName}>
-                                            <UploadOutlined /> {m.fileName}
-                                        </a>
+                                        <Button
+                                            type="link"
+                                            onClick={() => handleFileDownload(m.fileUrl!, m.fileName!)}
+                                        >
+                                            📎 {m.fileName}
+                                        </Button>
                                     )}
                                     <Text type="secondary" style={{ fontSize: 12 }}>
                                         {new Date(m.timestamp).toLocaleTimeString()}
@@ -97,14 +118,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ room, user, socket }) => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onPressEnter={sendText}
-                    placeholder="输入消息，按 Enter 发送"
+                    placeholder="Enter your text here"
                 />
                 <Button type="primary" onClick={sendText} style={{ marginLeft: 8 }}>
-                    发送
+                    Send
                 </Button>
                 <Upload {...uploadProps}>
                     <Button icon={<UploadOutlined />} style={{ marginLeft: 8 }}>
-                        上传文件
+                        Upload
                     </Button>
                 </Upload>
             </div>

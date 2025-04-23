@@ -25,13 +25,13 @@ export class WsJwtGuard implements CanActivate {
         const socket: any = context.switchToWs().getClient();
         const token: string | undefined = socket.handshake.auth.token;
         if (!token) {
-            throw new UnauthorizedException('未提供 token');
+            throw new UnauthorizedException('Token not provided');
         }
 
         // 解码拿 kid
         const decoded: any = jwt.decode(token, { complete: true });
         if (!decoded?.header?.kid) {
-            throw new UnauthorizedException('Token 无效');
+            throw new UnauthorizedException('Token invalid');
         }
 
         // 异步获取公钥
@@ -39,7 +39,7 @@ export class WsJwtGuard implements CanActivate {
         try {
             key = await this.getSigningKeyAsync(decoded.header.kid);
         } catch {
-            throw new UnauthorizedException('获取 JWKS 公钥失败');
+            throw new UnauthorizedException('Failed getting key');
         }
         const pub = key.getPublicKey();
 
@@ -57,7 +57,7 @@ export class WsJwtGuard implements CanActivate {
             };
             return true;
         } catch {
-            throw new UnauthorizedException('Token 验证失败');
+            throw new UnauthorizedException('Token failed');
         }
     }
 }

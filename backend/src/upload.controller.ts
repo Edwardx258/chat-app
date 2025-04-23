@@ -30,7 +30,7 @@ export class UploadController {
     )
     upload(@UploadedFile() file: Express.Multer.File) {
         if (!file) {
-            throw new HttpException('上传失败', HttpStatus.BAD_REQUEST);
+            throw new HttpException('Upload failed', HttpStatus.BAD_REQUEST);
         }
         // 返回前端可访问的 URL 和原文件名
         return {
