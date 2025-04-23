@@ -1,19 +1,24 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
+import AppRoutes from './routes';
 import reportWebVitals from './reportWebVitals';
 import 'antd/dist/reset.css';
+import { AuthProvider } from './context/AuthContext';
+
 const container = document.getElementById('root') as HTMLElement;
-// 1. 创建根
+// 1. Create Root
 const root = ReactDOM.createRoot(container);
-// 2. 渲染
+// 2. Color Root
 root.render(
     <React.StrictMode>
-        <App />
+        <AuthProvider>
+            {/* Router setup */}
+            <AppRoutes />
+        </AuthProvider>
     </React.StrictMode>
 );
 
-// 性能监控（可选）
+
 reportWebVitals();
 
