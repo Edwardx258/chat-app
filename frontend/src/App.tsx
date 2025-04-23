@@ -1,83 +1,61 @@
-import React, { useState } from 'react';
-import { Layout, Button, Input, Typography, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { ChatRoom } from './components/Chatroom';
 import { VideoChat } from './components/VideoChat';
+import { createChatSocket, createVideoSocket } from './services/socket';
 
-const { Header, Content } = Layout;
-const { Title } = Typography;
-
-function App() {
-    const [joined, setJoined] = useState(false);
-    const [room, setRoom] = useState('room1');
-    const [user, setUser] = useState('');
-    const [videoOn, setVideoOn] = useState(false);
-
-    if (!joined) {
-        return (
-            <Layout style={{ height: '100vh' }}>
-                <Header style={{ color: '#fff', textAlign: 'center' }}>
-                    <Title level={2} style={{ color: '#fff', margin: 0 }}>
-                        欢迎使用即时通讯应用
-                    </Title>
-                </Header>
-                <Content
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                    }}
-                >
-                    <Space direction="vertical" size="middle">
-                        <Input
-                            placeholder="用户名"
-                            value={user}
-                            onChange={(e) => setUser(e.target.value)}
-                            style={{ width: 300 }}
-                        />
-                        <Input
-                            placeholder="房间名"
-                            value={room}
-                            onChange={(e) => setRoom(e.target.value)}
-                            style={{ width: 300 }}
-                        />
-                        <Button
-                            type="primary"
-                            onClick={() => user && setJoined(true)}
-                            style={{ width: 300 }}
-                        >
-                            加入聊天室
-                        </Button>
-                    </Space>
-                </Content>
-            </Layout>
-        );
-    }
-
+export default function App() {
     return (
-        <Layout style={{ height: '100vh' }}>
-            <Header style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Title level={4} style={{ color: '#fff', margin: 0 }}>
-                    房间：{room} | 用户：{user}
-                </Title>
-                <Space>
-                    {!videoOn && (
-                        <Button onClick={() => setVideoOn(true)} type="default">
-                            启动视频
-                        </Button>
-                    )}
-                    {videoOn && (
-                        <Button onClick={() => setVideoOn(false)} danger>
-                            结束视频
-                        </Button>
-                    )}
-                </Space>
-            </Header>
-            <Content style={{ padding: '16px', overflow: 'hidden' }}>
-                {!videoOn && <ChatRoom room={room} user={user} />}
-                {videoOn && <VideoChat room={room} user={user} onClose={() => setVideoOn(false)} />}
-            </Content>
-        </Layout>
+        <Authenticator>
+            {() => <ChatUI />}
+        </Authenticator>
     );
 }
 
-export default App;
+function ChatUI() {
+    const { user, signOut } = useAuthenticator((ctx) => [ctx.user]);
+    const username = user.username;
+    //const token = user.signInUserSession.getIdToken().getJwtToken();
+    const cognitoUser = user as unknown as { getSignInUserSession(): any };
+    const session = cognitoUser.getSignInUserSession();
+    const token = session.getIdToken().getJwtToken();
+
+    const [chatSock, setChatSock] = useState<any>(null);
+    const [videoSock, setVideoSock] = useState<any>(null);
+    const [videoOn, setVideoOn] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            const cs = await createChatSocket(token);
+            cs.connect();
+            setChatSock(cs);
+            const vs = await createVideoSocket(token);
+            vs.connect();
+            setVideoSock(vs);
+        })();
+    }, [token]);
+
+    if (!chatSock || !videoSock) return null;
+
+    return (
+        <>
+            <div style={{ padding: 16 }}>
+                欢迎，{username}！
+                <button onClick={() => signOut()}>登出</button>
+                <button onClick={() => setVideoOn((v) => !v)}>
+                    {videoOn ? '返回文字' : '启动视频'}
+                </button>
+            </div>
+            {!videoOn ? (
+                <ChatRoom room="room1" user={username} socket={chatSock} />
+            ) : (
+                <VideoChat
+                    room="room1"
+                    user={username}
+                    socket={videoSock}
+                    onClose={() => setVideoOn(false)}
+                />
+            )}
+        </>
+    );
+}
